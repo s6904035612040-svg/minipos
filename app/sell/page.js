@@ -3,40 +3,21 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 
-// ===== Telegram Config จาก Environment Variables =====
-const TELEGRAM_BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID;
-
 // เกณฑ์เตือนภัยสต๊อกเหลือน้อย
 const LOW_STOCK_THRESHOLD = 5;
 
-// ฟังก์ชันกลางสำหรับยิงข้อความเข้า Telegram
-// ใช้ try-catch ครอบไว้ ถ้า Telegram ล่มจะไม่กระทบระบบขาย
+// ยิงข้อความแจ้งเตือนผ่าน API Route ของเราเอง (token ปลอดภัย อยู่ฝั่ง server)
 async function sendTelegramMessage(messageText) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.warn("ยังไม่ได้ตั้งค่า Telegram Config");
-    return;
-  }
-
   try {
-    const res = await fetch(
-      `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: TELEGRAM_CHAT_ID,
-          text: messageText,
-          parse_mode: "HTML",
-        }),
-      }
-    );
-
+    const res = await fetch("/api/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: messageText }),
+    });
     if (!res.ok) {
       console.error("ส่ง Telegram ไม่สำเร็จ:", await res.text());
     }
   } catch (err) {
-    // กลืน error ไว้ ไม่ให้กระทบการขาย
     console.error("Telegram error:", err);
   }
 }
@@ -135,8 +116,7 @@ export default function SellPage() {
       return;
     }
 
-    // ===== 3) แจ้งเตือน Telegram (หลังตัดสต๊อกสำเร็จ) =====
-    // ไม่ใส่ await ผูกกับ flow หลัก เพื่อไม่ให้หน่วงการแสดงผลฝั่งเว็บ
+    // 3) แจ้งเตือน Telegram (หลังตัดสต๊อกสำเร็จ) — ไม่ await เพื่อไม่หน่วงหน้าเว็บ
     notifyTelegram(selectedProduct, qtyNumber, totalPrice, newStock);
 
     setSuccessMsg(
@@ -147,7 +127,6 @@ export default function SellPage() {
     setSubmitting(false);
   };
 
-  // รวมการแจ้งเตือนทั้ง 2 งานไว้ที่เดียว
   const notifyTelegram = async (product, qty, total, newStock) => {
     const timeText = new Date().toLocaleString("th-TH", {
       dateStyle: "medium",
