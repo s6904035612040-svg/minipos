@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-// ไม่มี NEXT_PUBLIC_ = ค่านี้อยู่ฝั่ง server เท่านั้น browser มองไม่เห็น
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -22,10 +21,13 @@ export async function POST(request) {
     );
 
     if (!res.ok) {
+      const errText = await res.text();
+      console.error("Telegram API error:", errText);
       return NextResponse.json({ ok: false }, { status: 500 });
     }
     return NextResponse.json({ ok: true });
   } catch (err) {
+    console.error("Notify route error:", err);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
